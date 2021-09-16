@@ -70,7 +70,7 @@ def matToFct(mat):
 def fctToFct(fct):
     # fct = specific graphon function
     try:
-        if fct(np.array([0.3,0.7]), np.array([0.3,0.7])).ndim == 1:
+        if fct(np.array([0.3,0.7]), np.array([0.3,0.7])).shape != (2, 2):
             def auxFct(u,v):
                 if np.isscalar(u) or np.isscalar(v):
                     return(fct(u,v))
