@@ -1,4 +1,4 @@
- - GraphonEst:
+ - GraphonPy:
  -------------
 
 	Python package to conduct the graphon estimation routine from 'EM-Based 
@@ -40,7 +40,7 @@
  - Data:
  -------
 
-	Data sources which have been used for real world network examples.
+	Data sources which have been used for real-world network examples.
 
 
 	* facebook ego network data set, downloaded from and assembled by
