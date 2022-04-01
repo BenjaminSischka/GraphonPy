@@ -8,7 +8,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import warnings
-from GraphonEst.graphon import fctToMat, matToFct
+from GraphonPy.graphon import fctToMat, matToFct
 
 # Define a Sample Class
 class Sample:

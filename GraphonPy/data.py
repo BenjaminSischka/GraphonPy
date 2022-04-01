@@ -9,7 +9,7 @@ import numpy as np
 import networkx as nx
 import scipy.io
 import csv
-from GraphonEst.graph import ExtGraph
+from GraphonPy.graph import ExtGraph
 
 def GraphFromData(data_, dir_, estByDegree, addLabels = True):
     node_labels = None

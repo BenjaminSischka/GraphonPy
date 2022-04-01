@@ -11,7 +11,7 @@ import scipy.optimize as optimize
 import matplotlib.pyplot as plt
 import warnings
 from copy import copy
-from GraphonEst.graphon import Graphon
+from GraphonPy.graphon import Graphon
 
 
 # Define an Estimator Class

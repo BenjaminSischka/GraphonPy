@@ -10,7 +10,7 @@ import networkx as nx
 from operator import itemgetter
 import warnings
 from copy import copy
-from GraphonEst.graphon import fctToFct
+from GraphonPy.graphon import fctToFct
 from sklearn.metrics import euclidean_distances
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import cm

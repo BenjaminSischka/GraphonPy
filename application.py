@@ -9,8 +9,8 @@ import sys,os
 dir1_ = os.path.dirname(__file__)
 ## when running the file in an interactive session
 # dir1_ = os.path.dirname(os.path.realpath(''))
-sys.path.append(dir1_)  # specify path to Module GraphonEst
-from GraphonEst import *
+sys.path.append(dir1_)  # specify path to Module GraphonPy
+from GraphonPy import *
 
 import pickle
 

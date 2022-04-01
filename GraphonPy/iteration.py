@@ -5,8 +5,8 @@ Run the EM based algorithm -> iteration between the sampling (E-) and the estima
 
 '''
 import numpy as np
-from GraphonEst.fitting import Estimator, TuneLambdaSplineRegAIC
-from GraphonEst.sampling import Sample
+from GraphonPy.fitting import Estimator, TuneLambdaSplineRegAIC
+from GraphonPy.sampling import Sample
 
 def iterateEM(sortG,
               k, nKnots, canonical,
