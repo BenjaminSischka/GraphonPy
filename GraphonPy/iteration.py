@@ -14,9 +14,9 @@ def iterateEM(sortG,
               n_iter, rep_start, rep_end, it_rep_grow, rep_forPost,
               lambda_start, lambda_skip1, lambda_lim1, lambda_skip2, lambda_lim2, lambda_last_m,
               n_eval, trajMat=None,
-              makePlots=False, make_show=None, savefig=False, simulate=None, log_scale=False, dir_=None,
+              startWithEst=True, estGraphon=None, endWithSamp=True, raiseLabNb=False,
               returnLambList=True, returnGraphonList=False, returnSampList=False, returnAllGibbs=False,
-              startWithEst=True, estGraphon=None, endWithSamp=True, raiseLabNb=False):
+              makePlots=False, make_show=None, savefig=False, simulate=None, log_scale=False, dir_=None):
     result = type('', (), {})()
     lambda_ = lambda_start
     lambdas_ = np.array([])

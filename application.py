@@ -7,7 +7,7 @@ Application of EM based graphon estimation.
 import sys,os
 ## when running the file as script
 dir1_ = os.path.dirname(__file__)
-## when running the file in an interactive session
+## when running the code in an interactive session
 # dir1_ = os.path.dirname(os.path.realpath(''))
 sys.path.append(dir1_)  # specify path to Module GraphonPy
 from GraphonPy import *
@@ -27,7 +27,7 @@ figsize2 = (9, 5)
 ## specify the considered object to analyze
 simulate = False  # logical whether to used simulated or real data (-> knowledge about real U's)
 idX = 2  # specify graphon to consider (only used if simulate == True)
-data_ = 'alliances'  # specify data to consider (only used if simulate == False), alternatives: 'facebook', 'alliances', 'brain'
+data_ = 'alliances'  # specify data to consider (only used if simulate == False), options: 'facebook', 'alliances', 'brain'
 start_ = 0  # start value for global repetition of the algorithm
 stop_ = 0  # stop value for global repetition of the algorithm
 
@@ -43,22 +43,20 @@ plotAll = True  # logical whether to plot auxiliary graphics too
 log_scale = False if simulate else True  # logical whether to use log_scale for graphon plot
 
 ## about initialization
-initialByDegree = True  # logical whether the degree is used for initial ordering or not (alternative: MDS)
-randomInit = True  # logical whether to start with a random initialization of the U's (dominates 'initialByDegree')
+estMethod = 'random'  # method for initial estimation of Us_est [options: 'degree', 'mds', 'random', None]
 useIndividGraphs = False  # logical whether to use the same or individual graphs for the global repetitions of the estimation routine (only used if simulate == True)
-initRandomInit = False  # logical whether the unique graph used for each global repetition should initially have a random initialization
-# (only used if randomInit == False and ((simulate == True and useIndividGraphs == False) or simulate == False))
+useIndividRandInit = True  # logical whether to use different random intializations (only used if estMethod == 'random' and useIndividGraphs == False)
 
 initGraphonEst = False  # logical whether to make an initial estimate of the graphon
 initCanonical = False  # logical whether to start with canoncial estimation (only used if initGraphonEst == True)
 initPostDistr = False  # logical whether to calculate the initial posterior distribution (graphon specification necessary)
-trueInit = False  # logical whether to start with true model (true ordering + true graphon, dominates 'randomInit', only used if simulate == True)
+trueInit = False  # logical whether to start with true model (true ordering + true graphon, dominates 'estMethod', only used if simulate == True)
 if initPostDistr and (not (initGraphonEst or trueInit)):
     raise TypeError('no initial graphon estimation available')
 
 N = 100  # dimension of network (only used if simulate == True)
-Us = None  # initial real U's (only used if simulate == True)
-randomSample = False  # logical whether the real U's are a random or an equidistant sample (only used if simulate == True & Us == None)
+Us_real = None  # specify initial real U's (only used if simulate == True)
+randomSample = True  # logical whether the real U's are a random or an equidistant sample (only used if simulate == True & Us_real == None)
 
 ## parameters for B-spline regression
 k = 1  # order of B-splines (only 0 and 1 are implemented)
@@ -66,10 +64,10 @@ nKnots = 20  # number of inner knots for the B-spline basis
 canonical = False  # logical whether a canonical representation should be fitted
 
 ## parameters for the sampling
-n_steps = 150  # steps of Gibbs iterations
-proposal='logit_norm'  # type of proposal to use for the sampling (alternatives: 'uniform')
+n_steps = 50  # steps of Gibbs iterations
+proposal='logit_norm'  # type of proposal to use for the sampling (options: 'uniform')
 sigma_prop = 2  # variance of sampling step (-> proposal distribution, only used if proposal == 'logit_norm')
-use_origFct=True  # logical whether to use the graphon function itself or an discrete approx
+use_origFct=True  # logical whether to use the graphon function itself or a discrete approx
 averageType='mean'  # specify the kind of posterior average
 use_stdVals=True  # logical whether to use standardized Us (-> equidistant)
 
@@ -94,6 +92,7 @@ lambda_lim2 = (3) + lambda_skip2  # (.) = optimized lambdas to use for the mean 
 lambda_last_m = 3  # last m iterations at which lambda is optimized again
 if np.any([lambda_lim2 >= (n_iter - lambda_last_m), lambda_skip1 <= it_rep_grow]):
     warnings.warn('specification of iterations for estimating lambda should be reconsidered')
+    print('UserWarning: specification of iterations for estimating lambda should be reconsidered')
 
 ## parameter for observing convergence
 n_eval = 3  # number of evaluation points for the trajectory for observing convergence -> equidistant positions
@@ -103,11 +102,15 @@ n_eval = 3  # number of evaluation points for the trajectory for observing conve
 ### Define graphon (if simulation is considered -> simulate = True)
 
 if simulate:
-    graphon0=byExID(idX=idX, size=1000)
+    graphon0=byExID(idX=idX, size=1001)
     graphonMin0, graphonMax0 = np.max([np.floor(np.min(graphon0.mat) / 0.05) *0.05, 0]), np.min([np.ceil(np.max(graphon0.mat) / 0.05) *0.05, 1])
+
+useSameGraph = np.any([simulate and (not useIndividGraphs), not simulate])
+useIndividRandInit = (estMethod=='random') and useIndividRandInit  # useIndividRandInit if (estMethod=='random') else False
 
 result_list = []
 for glob_ind in range(start_,stop_+1):
+    #glob_ind = start_
 
     seed_ = glob_ind
     np.random.seed(seed_)
@@ -126,23 +129,25 @@ for glob_ind in range(start_,stop_+1):
 
     if simulate:
         if useIndividGraphs or (glob_ind == start_):
-            graph0=GraphByGraphon(graphon=graphon0,Us=Us,sizeU=N,randomSample=randomSample,estByDegree=initialByDegree)
+            graph0=GraphByGraphon(graphon=graphon0,Us_real=Us_real,N=N,randomSample=randomSample,estMethod=estMethod)
             graph0.sort(Us_type = 'est')
     else:
         if glob_ind == start_:
-            graph0 = GraphFromData(data_=data_, dir_=dir1_, estByDegree=initialByDegree)
-            N=graph0.N
+            graph0 = GraphFromData(data_=data_, dir_=dir1_, estMethod=estMethod)
             graph0.sort(Us_type = 'est')
+            N=graph0.N
     if (simulate and (useIndividGraphs or (glob_ind == start_))) or ((not simulate) and (glob_ind == start_)):
-        print(np.sum(graph0.A) / N)  # average number of links per node
-        print(np.sum(graph0.A) / ((N-1)*N))  # graph density
-    if randomInit or ((initRandomInit and (glob_ind == start_)) and ((simulate and (not useIndividGraphs)) or (not simulate))):
-        graph0.update(Us_est = np.random.permutation(np.linspace(0,1,N+2)[1:-1]))
-    if (not randomInit) and ((simulate and (not useIndividGraphs)) or (not simulate)):
-        if glob_ind == start_:
-            Us_est_unique = copy(graph0.Us_est)
+        print('Average degree in the network:', graph0.averDeg)  # average number of links per node
+        print('Overall density:', graph0.density)  # graph density
+    if useSameGraph:
+        if useIndividRandInit:
+            if glob_ind != start_:
+                graph0.update(Us_est=np.random.permutation(np.linspace(0, 1, N + 2)[1:-1]))
         else:
-            graph0.update(Us_est = Us_est_unique)
+            if glob_ind == start_:
+                Us_est_unique = copy(graph0.Us_est)
+            else:
+                graph0.update(Us_est=Us_est_unique)
 
 
     # plot adjacency matrix based on initial ordering
@@ -166,14 +171,12 @@ for glob_ind in range(start_,stop_+1):
             # plot adjacency matrix based on true ordering
             graph0_trueSort.showAdjMat(make_show=make_show, savefig=savefig, file_=dirExt + 'adjMat_true.png')
 
-            # plot network with true ordering
-            graph0_trueSort.showNet(make_show=make_show, savefig=savefig, file_=dirExt + 'network_true.png')
-
             # plot observed vs expected degree profile
             graph0_trueSort.showObsDegree(absValues=False, norm=False, fmt = 'C1o', title = False, make_show=make_show, savefig=False)
             graphon0.showExpDegree(norm=False, fmt = 'C0--', title = False, make_show=make_show, savefig=False)
             plt.xlabel('(i) $u$   /   (ii) $u_i$')
             plt.ylabel('(i) $g(u)$   /   (ii) $degree(i) \;/\; (N-1)$')
+            plt.tight_layout()
             if make_show:
                 plt.show()
             plt.savefig(dirExt + 'obsVSreal_expDegree.png')
@@ -188,6 +191,7 @@ for glob_ind in range(start_,stop_+1):
             graph0.update(Us_est = graph0.Us_('real'))
         else:
             warnings.warn('real data example is considered, ground truth is unknown')
+            print('UserWarning: real data example is considered, ground truth is unknown')
 
     if initGraphonEst:
         estGraphonData0 = Estimator(sortG=graph0)
@@ -210,14 +214,18 @@ for glob_ind in range(start_,stop_+1):
             plt.savefig(dirExt + 'graphon_compare_1.png')
             plt.close('all')
     else:
+        estGraphon0 = None
         trajMat = None
 
 
     if trueInit:
         if simulate:
+            if initGraphonEst:
+                graph0.update(Us_est=graph0.Us_('real'))
             estGraphon0 = graphon0
         else:
             warnings.warn('real data example is considered, ground truth is unknown')
+            print('UserWarning: real data example is considered, ground truth is unknown')
 
     seed2_ = glob_ind + 1
     np.random.seed(seed2_)
@@ -227,6 +235,7 @@ for glob_ind in range(start_,stop_+1):
     if initPostDistr:
         if rep_forPost == 0:
             warnings.warn('number of repetitions for calculating the posterior distribution is 0, no calculation is carried out')
+            print('UserWarning: number of repetitions for calculating the posterior distribution is 0, no calculation is carried out')
         else:
             # apply Gibbs sampling to the initial U's given the graphon estimate based on the initial ordering
             sample0=Sample(sortG=graph0,graphon=estGraphon0,use_origFct=use_origFct)
@@ -252,10 +261,10 @@ for glob_ind in range(start_,stop_+1):
                        n_iter=n_iter, rep_start=rep_start, rep_end=rep_end, it_rep_grow=it_rep_grow, rep_forPost=rep_forPost,
                        lambda_start=lambda_start, lambda_skip1=lambda_skip1, lambda_lim1=lambda_lim1, lambda_skip2=lambda_skip2, lambda_lim2=lambda_lim2, lambda_last_m=lambda_last_m,
                        n_eval=n_eval, trajMat=trajMat,
-                       makePlots=plotAll, make_show=make_show, savefig=savefig, simulate=simulate, log_scale=log_scale, dir_=dirExt,
+                       startWithEst=(not initGraphonEst) or (initGraphonEst and initPostDistr), estGraphon=estGraphon0,
+                       endWithSamp=True, raiseLabNb=initGraphonEst and initPostDistr,
                        returnLambList=True, returnGraphonList=False, returnSampList=False, returnAllGibbs=False,
-                       startWithEst=(not initGraphonEst) or (initGraphonEst and initPostDistr), estGraphon=estGraphon0 if initGraphonEst else None,
-                       endWithSamp=True, raiseLabNb=initGraphonEst and initPostDistr)
+                       makePlots=plotAll, make_show=make_show, savefig=savefig, simulate=simulate, log_scale=log_scale, dir_=dirExt)
 
 
 
@@ -274,6 +283,8 @@ for glob_ind in range(start_,stop_+1):
     if simulate:
         # plot true vs estimated graphon
         graphonMin1, graphonMax1 = np.max([(np.min([graphonMin0, np.min(EM_obj.estGraphon.mat)]) // 0.05) * 0.05, 0]), np.min([(np.max([graphonMax0, np.max(EM_obj.estGraphon.mat)]) // 0.05 + 1) * 0.05, 1])
+        graphon0.showColored(log_scale=log_scale, vmin=graphonMin1, vmax=graphonMax1, make_show=make_show, savefig=savefig, file_=dirExt + 'graphon_true2.png')
+        EM_obj.estGraphon.showColored(log_scale=log_scale, vmin=graphonMin1, vmax=graphonMax1, make_show=make_show, savefig=savefig, file_=dirExt + 'graphon_est_EM2.png')
         plt.figure(1, figsize=figsize1)
         plt.subplot(121)
         graphon0.showColored(log_scale=log_scale, fig_ax=(plt.gcf(), plt.gca()), vmin=graphonMin1, vmax=graphonMax1, make_show=make_show, savefig=False)
@@ -313,8 +324,9 @@ for glob_ind in range(start_,stop_+1):
         # plot observed vs expected degree profile based on EM ordering
         EM_obj.sortG.showObsDegree(absValues=False, norm=False, fmt = 'C1o', title=False, make_show=make_show, savefig=False)
         EM_obj.estGraphon.showExpDegree(norm=False, fmt = 'C0--', title=None, make_show=make_show, savefig=False)
-        plt.xlabel('(i) $u$   /   (ii) $\hat u_i^{\;EM}$')
-        plt.ylabel('(i) $\hat g^{\;EM}(u)$   /   (ii) $degree(i) \;/\; (N-1)$')
+        plt.xlabel('(i) $u$   /   (ii) $\hat{u}_i^{\;EM}$')
+        plt.ylabel('(i) $\hat{g}^{\;EM}(u)$   /   (ii) $degree(i) \;/\; (N-1)$')
+        plt.tight_layout()
         if make_show:
             plt.show()
         plt.savefig(dirExt + 'obsVsEM_expDegree.png')
@@ -336,7 +348,7 @@ for glob_ind in range(start_,stop_+1):
                       'order': EM_obj.estGraphon.order}
     if rep_forPost != 0:
         sample_simple = {'U_MCMC': EM_obj.sample.U_MCMC, 'U_MCMC_std': EM_obj.sample.U_MCMC_std,
-                         'U_MCMC_all': EM_obj.sample.U_MCMC_all, 'accepRate': EM_obj.sample.accepRate,
+                         'U_MCMC_all': EM_obj.sample.U_MCMC_all, 'acceptRate': EM_obj.sample.acceptRate,
                          'Us_new': EM_obj.sample.Us_new, 'Us_new_std': EM_obj.sample.Us_new_std}
     else:
         sample_simple = None
@@ -352,9 +364,9 @@ for glob_ind in range(start_,stop_+1):
     fname = directory_ + '_register.csv'
     if not os.path.isfile(fname):
         with open(fname, 'a') as fd:
-            fd.write('nTry; logLik; AIC; seed; seed2; initialByDegree; randomInit; initGraphonEst; initCanonical; initPostDistr; trueInit; N; k; nKnots; canonical; n_steps; sigma_prop; averageType; use_stdVals; rep_forPost; n_iter; rep_start; rep_end; it_rep_grow; lambda_start; lambda_skip1; lambda_lim1; lambda_skip2; lambda_lim2; lambda_last_m; lambda_; \n')
+            fd.write('nTry; logLik; AIC; seed; seed2; estMethod; initGraphonEst; initCanonical; initPostDistr; trueInit; N; k; nKnots; canonical; n_steps; sigma_prop; averageType; use_stdVals; rep_forPost; n_iter; rep_start; rep_end; it_rep_grow; lambda_start; lambda_skip1; lambda_lim1; lambda_skip2; lambda_lim2; lambda_last_m; lambda_; \n')
     with open(fname, 'a') as fd:
-        fd.write(nTry + ';' + result_[1] + ';' + result_[2] + ';' + seed_.__str__() + ';' + seed2_.__str__() + '; ' + initialByDegree.__str__() + '; ' + randomInit.__str__() + '; ' + initGraphonEst.__str__() + '; ' + initCanonical.__str__() + '; ' + initPostDistr.__str__() + '; ' + trueInit.__str__() + '; ' + N.__str__() + '; ' + k.__str__() + '; ' + nKnots.__str__() + '; ' + canonical.__str__() + '; ' + n_steps.__str__() + '; ' + sigma_prop.__str__() + '; ' + averageType + '; ' + use_stdVals.__str__() + '; ' +
+        fd.write(nTry + ';' + result_[1] + ';' + result_[2] + ';' + seed_.__str__() + ';' + seed2_.__str__() + '; ' + estMethod.__str__() + '; ' + initGraphonEst.__str__() + '; ' + initCanonical.__str__() + '; ' + initPostDistr.__str__() + '; ' + trueInit.__str__() + '; ' + N.__str__() + '; ' + k.__str__() + '; ' + nKnots.__str__() + '; ' + canonical.__str__() + '; ' + n_steps.__str__() + '; ' + sigma_prop.__str__() + '; ' + averageType + '; ' + use_stdVals.__str__() + '; ' +
                  rep_forPost.__str__() + '; ' + n_iter.__str__() + '; ' + rep_start.__str__() + '; ' + rep_end.__str__() + '; ' + it_rep_grow.__str__() + '; ' + lambda_start.__str__() + '; ' + lambda_skip1.__str__() + '; ' + lambda_lim1.__str__() + '; ' + lambda_skip2.__str__() + '; ' + lambda_lim2.__str__() + '; ' + lambda_last_m.__str__() + '; ' + np.round(EM_obj.lambda_, 4).__str__() + '; \n')
 
 

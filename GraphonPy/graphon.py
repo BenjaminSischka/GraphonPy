@@ -48,6 +48,7 @@ def fctToMat(fct,size):
             mat=fct(us_i,us_j)
     except ValueError:
         warnings.warn('not appropriate graphon definition, slow from function to matrix derivation')
+        print('UserWarning: not appropriate graphon definition, slow from function to matrix derivation')
         mat=np.zeros((size0, size1))
         for i in range(size0):
             for j in range(size1):
@@ -84,6 +85,7 @@ def fctToFct(fct):
             return(deepcopy(fct)) 
     except ValueError:
         warnings.warn('function only accepts scalars')
+        print('UserWarning: function only accepts scalars')
         def auxFct(u,v):
             if np.isscalar(u) and np.isscalar(v):
                 return(fct(u,v))
@@ -100,7 +102,7 @@ def fctToFct(fct):
 # Define Graphon Class
 class Graphon:
     
-    def __init__(self,fct=None,mat=None,size=500):
+    def __init__(self,fct=None,mat=None,size=501):
         # fct = specific graphon function, mat = approx. graphon function on regular grid, size = fineness of the graphon matrix
         if fct is None:
             if mat is None:
@@ -115,9 +117,11 @@ class Graphon:
             if not mat is None:
                 if not np.array_equal(np.round(fctToMat(fct,mat.shape), 5),np.round(mat, 5)):
                     warnings.warn('the partitioning of the graphon in a grid \'mat\' is not exactly according to the graphon function \'fct\' or might be rotated')
+                    print('UserWarning: the partitioning of the graphon in a grid \'mat\' is not exactly according to the graphon function \'fct\' or might be rotated')
     def showColored(self, vmin=None, vmax=None, vmin_=0.01, log_scale=False, ticks = [0, 0.25, 0.5, 0.75, 1], showColorBar=True, colorMap = 'plasma_r', fig_ax=None, make_show=True, savefig=False, file_=None):
-        if (self.mat.min() < 0) or (self.mat.max() > 1):
+        if (self.mat.min() < -1e-3) or (self.mat.max() > 1+1e-3):
             warnings.warn('graphon has bad values, correction has been applied -> codomain: [0,1]')
+            print('UserWarning: graphon has bad values, correction has been applied -> codomain: [0,1]')
         self_mat = np.minimum(np.maximum(self.mat,0),1)
         if fig_ax is None:
             fig, ax = plt.subplots()
@@ -125,16 +129,16 @@ class Graphon:
             fig, ax = fig_ax
         if vmin is None:
             vmin = self_mat.min()
-        vmin_diff = vmin_ - vmin
+        vmin_diff = np.max([vmin_ - vmin, 0])
         if vmax is None:
             vmax = self_mat.max()
-        plotGraphon = ax.matshow(self_mat + vmin_diff, cmap=plt.get_cmap(colorMap), interpolation='none', norm=LogNorm(vmin=vmin_, vmax=vmax + vmin_diff)) if log_scale else \
-        ax.matshow(self_mat, cmap=plt.get_cmap(colorMap), interpolation='none', vmin=vmin,vmax=vmax)
-        plt.xticks(self_mat.shape[1] * np.array(ticks) - 0.5, [(round(round(i,4)) if round(i,4) == round(round(i,4)) else round(i,4)).__str__() for i in ticks])
-        plt.yticks(self_mat.shape[0] * np.array(ticks) - 0.5, [(round(round(i,4)) if round(i,4) == round(round(i,4)) else round(i,4)).__str__() for i in ticks])
+        plotGraphon = ax.matshow(self_mat + vmin_diff, cmap=plt.get_cmap(colorMap), interpolation='none', norm=LogNorm(vmin=vmin + vmin_diff, vmax=vmax + vmin_diff)) if log_scale else \
+        ax.matshow(self_mat, cmap=plt.get_cmap(colorMap), interpolation='none', vmin=vmin, vmax=vmax)
+        plt.xticks(self_mat.shape[1] * np.array(ticks) - 0.5, [(round(round(i,4)) if np.isclose(round(i,4), round(round(i,4))) else round(i,4)).__str__() for i in ticks])
+        plt.yticks(self_mat.shape[0] * np.array(ticks) - 0.5, [(round(round(i,4)) if np.isclose(round(i,4), round(round(i,4))) else round(i,4)).__str__() for i in ticks])
         plt.tick_params(bottom=False)
         if showColorBar:
-            ticks_CBar = [(np.exp(np.log(vmin_) - i * (np.log(vmin_) - np.log(vmax + vmin_diff)) / 5) if log_scale else (i/5) * (vmax - vmin) + vmin) for i in range(6)]
+            ticks_CBar = [((10**(np.log10(vmin + vmin_diff) - i * (np.log10(vmin + vmin_diff) - np.log10(vmax + vmin_diff)) / 5)) if log_scale else ((i/5) * (vmax - vmin) + vmin)) for i in range(6)]
             cbar = colorBar(plotGraphon, ticks = ticks_CBar)
             cbar.ax.minorticks_off()
             cbar.ax.set_yticklabels(np.round(np.array(ticks_CBar) - (vmin_diff if log_scale else 0), 4))
@@ -145,7 +149,7 @@ class Graphon:
             plt.close(plt.gcf())
         else:
             return(eval('plotGraphon' + (', cbar' if showColorBar else '')))
-    def showExpDegree(self,size=100,norm=False,fmt='-',title=True,make_show=True,savefig=False,file_=None):
+    def showExpDegree(self,size=101,norm=False,fmt='-',title=True,make_show=True,savefig=False,file_=None):
         if self.byMat:
             g_ = self.mat.mean(axis=0)
             us = np.linspace(0,1,self.mat.shape[1])
@@ -159,6 +163,7 @@ class Graphon:
         if title:
             plt.xlabel('u')
             plt.ylabel('g(u)')
+        plt.gca().set_aspect(np.abs(np.diff(plt.gca().get_xlim())/np.diff(plt.gca().get_ylim()))[0])
         if make_show:
             plt.show()
         if savefig:
@@ -172,7 +177,7 @@ class Graphon:
 
 
 # Define graphon generating function by predefined functions
-def byExID(idX,size=100):
+def byExID(idX,size=101):
     # idX = id of function (see below), size = fineness of the graphon matrix
     examples = {
                 1: lambda u,v: 1/2*(u+v),
@@ -183,7 +188,7 @@ def byExID(idX,size=100):
 #out: graphon
 
 # Define graphon by B-spline function
-def byBSpline(tau, P_mat=None, theta=None, order=1):
+def byBSpline(tau, P_mat=None, theta=None, order=1, size=101):
     # tau = inner knot positions, P_mat/theta = parameters in form of matrix/vector, order = order of the B-splines
     if order == 0:
         if P_mat is None:
@@ -194,6 +199,7 @@ def byBSpline(tau, P_mat=None, theta=None, order=1):
         else:
             if not theta is None:
                 warnings.warn('parameter vector theta has not been used')
+                print('UserWarning: parameter vector theta has not been used')
             theta = P_mat.reshape(np.prod(P_mat.shape))
         def grFct(x_eval, y_eval):
             vec_x = np.maximum(np.searchsorted(tau, np.array(x_eval, ndmin=1, copy=False)) -1, 0).astype(int)
@@ -207,13 +213,14 @@ def byBSpline(tau, P_mat=None, theta=None, order=1):
         else:
             if not P_mat is None:
                 warnings.warn('parameter matrix P_mat has not been used')
+                print('UserWarning: parameter matrix P_mat has not been used')
             P_mat = theta.reshape((len(tau) -1, len(tau) -1))
         def grFct(x_eval, y_eval):
             x_eval_order = np.argsort(x_eval)
             y_eval_order = np.argsort(y_eval)
             fct_eval_order=interpolate.bisplev(x= np.array(x_eval, ndmin=1, copy=False)[x_eval_order], y=np.array(y_eval, ndmin=1, copy=False)[y_eval_order], tck=(tau, tau, theta, order, order), dx=0, dy=0)
             return(eval('fct_eval_order' + (('[np.argsort(x_eval_order)]' + ('[:,' if len(y_eval_order) > 1 else '')) if len(x_eval_order) > 1 else ('[' if len(y_eval_order) > 1 else '')) + ('np.argsort(y_eval_order)]' if len(y_eval_order) > 1 else '')))
-    GraphonSpeci = Graphon(fct=grFct)
+    GraphonSpeci = Graphon(fct=grFct,size=size)
     GraphonSpeci.tau = tau
     GraphonSpeci.P_mat = P_mat
     GraphonSpeci.theta = theta

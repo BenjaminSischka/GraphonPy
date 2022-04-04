@@ -11,23 +11,20 @@ import scipy.io
 import csv
 from GraphonPy.graph import ExtGraph
 
-def GraphFromData(data_, dir_, estByDegree, addLabels = True):
+def GraphFromData(data_, estMethod = None, dir_ = os.path.realpath('..'), addLabels = True):
     node_labels = None
     ##### Facebook
     if data_ == 'facebook':
         adjMat = nx.to_numpy_array(nx.read_edgelist(os.path.join(dir_, 'Data/facebook') + '/0.edges'))
-        # adjMat = nx.to_numpy_array(nx.read_edgelist(os.path.realpath('Data/facebook') + '/0.edges'))  # '../Data/facebook'  # ***
     ##### Human Brain Data
     if data_ == 'brain':
         weightMat = scipy.io.loadmat(os.path.join(dir_, 'Data/human_brain') + '/Coactivation_matrix.mat')['Coactivation_matrix']
-        # weightMat = scipy.io.loadmat(os.path.realpath('Data/human_brain') + '/Coactivation_matrix.mat')['Coactivation_matrix']  # '../Data/human_brain'  # ***
         adjMat = (weightMat >= 1e-5).astype('int')
         # an edge between two brain regions means that there is at least one task at which they are coactivated
     ##### Military Alliances
     if data_ == 'alliances':
         adjMat = np.zeros((0, 257)).astype('int')
         with open(os.path.join(dir_, 'Data/alliances') + '/alliances_strong_post_adjMat_2016.csv') as f_cont:
-        # with open(os.path.realpath('Data/alliances') + '/alliances_strong_post_adjMat_2016.csv') as f_cont:  # '../Data/alliances'  # ***
             reader = csv.reader(f_cont)
             node_labels = next(reader)[1:]
             for line in reader:
@@ -40,5 +37,5 @@ def GraphFromData(data_, dir_, estByDegree, addLabels = True):
         adjMat = adjMat[all_other][:, all_other]
         node_labels = node_labels[all_other]
     #####
-    return(ExtGraph(A = adjMat, estByDegree=estByDegree, labels=node_labels if addLabels else None))
+    return(ExtGraph(A = adjMat, estMethod=estMethod, labels=node_labels if addLabels else None))
 

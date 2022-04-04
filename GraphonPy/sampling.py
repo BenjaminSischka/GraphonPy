@@ -20,8 +20,10 @@ class Sample:
         # use_origFct = logical whether to use original graphon function or discrete approx
         if sortG.sorting is None:
             warnings.warn('no specification about Us_type (see sortG.sorting), empirical degree ordering is used')
+            print('UserWarning: no specification about Us_type (see sortG.sorting), empirical degree ordering is used')
             sortG.sort(Us_type='emp')
             warnings.warn('input graph is now sorted by empirical degree')
+            print('UserWarning: input graph is now sorted by empirical degree')
         self.sortG = sortG
         self.labels = sortG.labels_()  # save for iteration -> allowing for re-identification
         if N_fine is None:
@@ -35,8 +37,9 @@ class Sample:
                 matToFct(mat=graphon.mat if (graphon.byMat & (graphon.mat.shape[0] <= N_fine)) else fctToMat(graphon.fct, size=N_fine))
             if not w_fct is None:
                 warnings.warn('function \'w_fct\' has not been used')
+                print('UserWarning: function \'w_fct\' has not been used')
         self.U_MCMC, self.U_MCMC_all = np.zeros((0, self.sortG.N)), np.zeros((0, self.sortG.N))
-        self.accepRate = np.array([])
+        self.acceptRate = np.array([])
     def gibbs(self,steps=300,rep=10,proposal='logit_norm',sigma_prop=2,returnAllGibbs=False,averageType='mean',updateGraph=False,use_stdVals=None,printWarn=True):
         # steps = steps of Gibbs iterations, rep = number of repetitions/sequences, proposal = type of proposal,
         # sigma_prop = variance of sampling step (proposal distribution), returnAllGibbs = logical whether to return all Gibbs stages,
@@ -72,9 +75,9 @@ class Sample:
                     if returnAllGibbs:
                         self.U_MCMC_all[rep_step * steps + step,k] = u_t[k]
             self.U_MCMC = np.vstack((self.U_MCMC, u_t))
-            new_accepRate = np.sum(Decision)/(self.sortG.N*steps)
-            self.accepRate = np.append(self.accepRate, new_accepRate)
-            print('Acceptance Rate', new_accepRate)
+            new_acceptRate = np.sum(Decision)/(self.sortG.N*steps)
+            self.acceptRate = np.append(self.acceptRate, new_acceptRate)
+            print('Acceptance Rate', new_acceptRate)
         if averageType == 'mean':
             self.Us_new = np.mean(self.U_MCMC, axis=0)
         if averageType == 'median':
@@ -85,11 +88,13 @@ class Sample:
             updateGraph(use_stdVals=use_stdVals)
             if printWarn:
                 warnings.warn('U\'s from input graph have been updated')
+                print('UserWarning: U\'s from input graph have been updated')
     def updateGraph(self, use_stdVals):
         try:
             self.sortG.update(Us_est=self.Us_new_std if use_stdVals else self.Us_new)  # only Us_est should be changed; if self.sortG.sorting=='real'_or_'emp' the result will anyway be saved as Us_est
         except AttributeError:
             warnings.warn('graph can only be updated after the Gibbs sampling has been executed, use [].gibbs()')
+            print('UserWarning: graph can only be updated after the Gibbs sampling has been executed, use [].gibbs()')
     def showMove(self,Us_type=None,useAllGibbs=False,std=False,useColor=True,title=True,EMstep_sign=1,make_show=True,savefig=False,file_=None):
         if Us_type is None:
             Us_type = self.sortG.sorting
@@ -103,6 +108,8 @@ class Sample:
             plt.ylabel('$\hat{u}_i^{\;(' + EMstep_sign.__str__() + ')}$')
         plt.xlim((-1/20,21/20))
         plt.ylim((-1/20,21/20))
+        plt.gca().set_aspect(np.abs(np.diff(plt.gca().get_xlim())/np.diff(plt.gca().get_ylim()))[0])
+        plt.tight_layout()
         if make_show:
             plt.show()
         if savefig:
@@ -122,6 +129,7 @@ class Sample:
         else:
             if not ks_abs is None:
                 warnings.warn('k\'s have been specified by ks_lab, ks_abs has not been used')
+                print('UserWarning: k\'s have been specified by ks_lab, ks_abs has not been used')
             ks_abs = np.array([eval('self.sortG.Ord_' + Us_type_label)[ks_lab_i] for ks_lab_i in ks_lab])
         n_k = len(ks_lab)
         distr_Uk = np.zeros((1, n_k, distrN_fine))
@@ -155,7 +163,7 @@ class Sample:
             if i_k in range(n_k - int(np.ceil(np.sqrt(n_k))), n_k):
                 plt.xlabel('$u_{(k)}$')
             if ((i_k % int(np.ceil(np.sqrt(n_k)))) == 0):
-                plt.ylabel('$\hat f_{(k)}^{\;' + EMstep_sign + '}(u_{(k)}\, |\, y)$')
+                plt.ylabel('$\hat{f}_{(k)}^{\;' + EMstep_sign + '}(u_{(k)}\, |\, y)$')
             plt.title('$k = ' + (ks_abs[i_k]+1).__str__() + '$')
         if useTightLayout:
             plt.tight_layout(w_pad=w_pad, h_pad=h_pad)
@@ -171,7 +179,7 @@ class Sample:
 #     wEst_fct = estimated graphon function, wReal_fct = real graphon function,
 #     U_MCMC = vector of Gibbs sampled U-vectors, U_MCMC_std = vector of standardized Gibbs sampled U-vectors ->[1/(N+1),...,N/(N+1)],
 #     Us_new = mean over Gibbs sampling returns, Us_new_std = standardized version of Us_new ->[1/(N+1),...,N/(N+1)],
-#     accepRate = acceptance rate of new proposed/sampled values
+#     acceptRate = acceptance rate of new proposed/sampled values
 #     gibbs = apply Gibbs sampling to start values for specified adj. matrix and graphon
 #     showMove = plot comparison between (mean or vector of) sampled U's and start values or real U's
 

@@ -21,8 +21,10 @@ class Estimator:
         # sortG = sorted extended graph
         if sortG.sorting is None:
             warnings.warn('no specification about Us_type (see sortG.sorting), empirical degree ordering is used')
+            print('UserWarning: no specification about Us_type (see sortG.sorting), empirical degree ordering is used')
             sortG.sort(Us_type='emp')
             warnings.warn('input graph is now sorted by empirical degree')
+            print('UserWarning: input graph is now sorted by empirical degree')
         self.sortG = sortG
     def GraphonEstBySpline(self, k=1, nKnots=10, canonical=False, lambda_=50, Us_mult=None, returnAIC=False):
         # k = degree of splines (only 0 and 1 are implemented), nKnots = number of inner knots, canonical = logical whether to fit a canonical graphon,
@@ -42,10 +44,12 @@ class Estimator:
                 array[(pos_i[0]):(pos_i[1])][:, (pos_j[0]):(pos_j[1])] = val
                 return (array)
             B = np.array([[itemset(array=np.zeros((self.sortG.N, self.sortG.N)), pos_i=indexVec[i], pos_j=indexVec[j], val=1) for i in range(nSpline1d) for j in range(nSpline1d)] for indexVec in indexVecMat])
-            A_part = (1 / nSpline1d) * np.repeat(1, nSpline1d)
+            if canonical:
+                A_part = (1 / nSpline1d) * np.repeat(1, nSpline1d)
         elif k == 1:
             B = np.array([np.array([interpolate.bisplev(x=np.sort(Us), y=np.sort(Us), tck=(t, t, np.lib.pad([1], (i, nSpline - i - 1), 'constant', constant_values=(0)), k, k), dx=0, dy=0) for i in np.arange(nSpline)])[:, np.argsort(np.argsort(Us)), :][:, :, np.argsort(np.argsort(Us))] for Us in Us_mult])
-            A_part = (1 / (nSpline1d - 1)) * np.concatenate(([1 / 2], np.repeat(1, nSpline1d - 2), [1 / 2]))
+            if canonical:
+                A_part = (1 / (nSpline1d - 1)) * np.concatenate(([1 / 2], np.repeat(1, nSpline1d - 2), [1 / 2]))
         else:
             raise TypeError('B-splines of degree k = ' + k.__str__() + ' have not been implemented yet')
         B_cbind = np.array([np.delete(B[l].reshape(nSpline, self.sortG.N ** 2), np.arange(self.sortG.N) * (self.sortG.N + 1), axis=1) for l in range(m)])
@@ -69,7 +73,7 @@ class Estimator:
         cvxopt.solvers.options['show_progress'] = False
         differ = 5
         index_marker = 1
-        while (differ > 0.05 ** 2):
+        while (differ > 0.01 ** 2):
             Pi = np.minimum(np.maximum(np.sum(B.swapaxes(1, 3) * theta_t, axis=3), 1e-5), 1 - 1e-5)
             mat1 = (B.swapaxes(0, 1) * ((self.sortG.A * (1 / Pi)) - ((1 - self.sortG.A) * (1 / (1 - Pi))))).swapaxes(0, 1)
             score = np.sum(np.sum(np.sum(mat1, axis=0), axis=1), axis=1) - np.sum(np.sum([np.diagonal(mat1[l], axis1=1, axis2=2).T for l in range(m)], axis=0), axis=0)
@@ -90,6 +94,7 @@ class Estimator:
             index_marker = index_marker + 1
             if index_marker > 10:
                 warnings.warn('Fisher scoring did not converge')
+                print('UserWarning: Fisher scoring did not converge')
                 print(theta_tOld)
                 print(theta_t)
                 print(np.round(theta_t - theta_tOld, 4))
@@ -103,12 +108,13 @@ class Estimator:
             [np.fill_diagonal(logProbMat_i, 0) for logProbMat_i in logProbMat]
             return (-2 * np.sum(logProbMat) + 2 * df_lambda + ((2 * df_lambda * (df_lambda + 1)) / (((self.sortG.N ** 2 - self.sortG.N) * m) - df_lambda - 1)))
         else:
-            def fct(x_eval, y_eval):
-                if k == 0:
+            if k == 0:
+                def fct(x_eval, y_eval):
                     vec_x = np.maximum(np.ceil(np.array(x_eval, ndmin=1, copy=False) * nSpline1d) - 1, 0).astype(int)
                     vec_y = np.maximum(np.ceil(np.array(y_eval, ndmin=1, copy=False) * nSpline1d) - 1, 0).astype(int)
                     return (theta_t.reshape((nSpline1d, nSpline1d))[vec_x][:, vec_y])
-                if k == 1:
+            if k == 1:
+                def fct(x_eval, y_eval):
                     x_eval_order = np.argsort(x_eval)
                     y_eval_order = np.argsort(y_eval)
                     fct_eval_order = interpolate.bisplev(x=np.array(x_eval, ndmin=1, copy=False)[x_eval_order], y=np.array(y_eval, ndmin=1, copy=False)[y_eval_order], tck=(t, t, theta_t, k, k), dx=0, dy=0)
@@ -122,6 +128,8 @@ class Estimator:
     # additional AIC function to return AIC for a graphon estimate which has already been determined
     def AIC(self, lambda_ = 50, Us_mult=None):
         # lambda_ = parameter of penalty, Us_mult = multiple U-vectors in form of a matrix
+        if not hasattr(self, 'graphonEst'):
+            raise AttributeError('AIC can only be calculated after estimation (see self.GraphonEstBySpline())')
         if Us_mult is None:
             Us_mult = self.sortG.Us_(self.sortG.sorting).reshape(1, self.sortG.N)
         m = Us_mult.shape[0]
@@ -149,7 +157,7 @@ class Estimator:
         [np.fill_diagonal(logProbMat_i, 0) for logProbMat_i in logProbMat]
         return (-2 * np.sum(logProbMat) + 2 * df_lambda + ((2 * df_lambda * (df_lambda + 1)) / (((self.sortG.N ** 2 - self.sortG.N) * m) - df_lambda - 1)))
 # out: Estimator Object
-#     GraphonEstBySpline = function for graphon estimation by B-splines
+#      GraphonEstBySpline = function for graphon estimation by B-splines
 #         out: graphon plus parameters for B-spline function
 
 
